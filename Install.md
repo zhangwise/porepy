@@ -9,7 +9,7 @@ To get the code fully working requires a few more steps, as described below.
 ## Installation on Linux
 Instructions are found on the GitHub webpage. The best option is to download the source code from github, and install by `pip install porepy`.
 
-## Intall on Windows
+## Install on Windows
 This is a bit more tricky, since installing the dependencies (e.g. `numpy`, `scipy`) using pip requires access to a compiler.
 The recommended solution (for working with Python on Windows in general, it seems)
 is to install the dependencies using `conda`, and then `pip install porepy`, preferrably installing from source.
