@@ -61,6 +61,7 @@ class static_flow_IE_solver(AbstractSolver):
         lhs_flux, rhs_flux = self._discretize(self.space_disc)
         lhs_time, rhs_time = self._discretize(self.time_disc)
 
+        self.rhs_time = rhs_time
         self.lhs = lhs_time + lhs_flux
         self.lhs_time = lhs_time
         self.static_rhs = rhs_flux + rhs_time
