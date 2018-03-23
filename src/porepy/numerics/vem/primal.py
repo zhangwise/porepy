@@ -9,6 +9,7 @@ import numpy as np
 import scipy.sparse as sps
 
 from porepy.params import tensor
+from porepy.grids import grid
 
 from porepy.numerics.mixed_dim.solver import Solver, SolverMixedDim
 from porepy.numerics.mixed_dim.coupler import Coupler
@@ -60,8 +61,8 @@ class PrimalVEM(Solver):
         """
         if isinstance(g, grid.Grid):
             return g.num_nodes
-        elif isinstance(g, mortar_grid.MortarGrid):
-            return g.num_cells
+#        elif isinstance(g, mortar_grid.MortarGrid):
+#            return g.num_cells
         else:
             raise ValueError
 
@@ -240,10 +241,10 @@ class PrimalVEM(Solver):
         if bc is None:
             return rhs
 
+        if np.any(bc.is_dir):
             is_dir = np.where(bc.is_dir)[0]
             nodes, _, _, = sps.find(g.face_nodes)
 
-        if np.any(bc.is_dir):
             size = np.power(g.dim, 2)*is_dir.size
             I = np.empty(size, dtype=np.int)
             J = np.empty(size, dtype=np.int)

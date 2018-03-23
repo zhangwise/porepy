@@ -162,6 +162,9 @@ class BasicsTest( unittest.TestCase ):
         g = simplex.StructuredTriangleGrid([1, 1], [1, 1])
         g.compute_geometry()
 
+        from porepy.viz.plot_grid import plot_grid
+        plot_grid(g, alpha=0, info='all')
+
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
 
@@ -174,11 +177,10 @@ class BasicsTest( unittest.TestCase ):
         param.set_bc(solver, bc)
         M = solver.matrix(g, {'param': param}).todense()
 
-        M_known = np.matrix([[  1.,  0., -1.,  0.,  0.],
-                             [  0.,  1., -1.,  0.,  0.],
-                             [ -1., -1.,  4., -1., -1.],
-                             [  0.,  0., -1.,  1.,  0.],
-                             [  0.,  0., -1.,  0.,  1.]])/2
+        M_known = np.matrix([[  2, -1, -1,  0],
+                             [ -1,  2,  0, -1],
+                             [ -1,  0,  2, -1],
+                             [  0, -1, -1,  2]])/2.
 
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
@@ -205,6 +207,38 @@ class BasicsTest( unittest.TestCase ):
 
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
+
+#------------------------------------------------------------------------------#
+
+    def test_primal_vem_2d_iso_simplex_convergence(self):
+
+        p_ex = lambda pt: pt[0, :]-2*pt[1, :]
+
+        g = simplex.StructuredTriangleGrid([1, 1], [1, 1])
+        g.compute_geometry()
+
+        from porepy.viz.plot_grid import plot_grid
+        plot_grid(g, alpha=0, info='all')
+
+        kxx = np.ones(g.num_cells)
+        perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
+
+        bf = g.tags['domain_boundary_faces'].nonzero()[0]
+        bc = BoundaryCondition(g, bf, bf.size*['dir'])
+        bc_val = np.zeros(g.num_faces)
+        bc_val[bf] = p_ex(g.face_centers[:, bf])
+        solver = primal.PrimalVEM(physics='flow')
+
+        param = Parameters(g)
+        param.set_tensor(solver, perm)
+        param.set_bc(solver, bc)
+        param.set_bc_val(solver, bc_val)
+
+        M, rhs = solver.matrix_rhs(g, {'param': param})
+        p = sps.linalg.spsolve(M, rhs)
+        print(p_ex(g.nodes))
+        print(p)
+        print(rhs)
 
 #------------------------------------------------------------------------------#
 
@@ -239,8 +273,5 @@ def matrix_for_test_primal_vem_3d_iso_cart():
     [0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,1.562499999999998890e-01,-3.125000000000002082e-02,0.000000000000000000e+00,-3.125000000000003469e-02,-2.187499999999999722e-01,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,-3.125000000000004857e-02,-2.187499999999999722e-01,0.000000000000000000e+00,-2.187499999999999445e-01,5.937500000000001110e-01]])
 
 #------------------------------------------------------------------------------#
-BasicsTest().test_primal_vem_2d_triangle()
-BasicsTest().test_primal_vem_1d_iso()
-BasicsTest().test_primal_vem_3d_iso_cart()
-
+BasicsTest().test_primal_vem_2d_iso_simplex_convergence()
 
