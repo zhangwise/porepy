@@ -157,16 +157,8 @@ class BasicsTest( unittest.TestCase ):
     def test_tag_2d_1d_cart(self):
         f1 = np.array([[0, 1], [.5, .5]])
         gb = meshing.cart_grid([f1], [4, 4], **{'physdims': [1, 1]})
-        gb.compute_geometry()
 
-        from porepy.viz.plot_grid import plot_grid
-        plot_grid(gb, alpha=0, info='fn')
         for g, _ in gb:
-            for k, t in g.tags.items():
-                print(k)
-                print(np.where(t)[0])
-
-            print(g.num_faces)
 
             if g.dim == 1:
                 assert np.array_equal(g.tags['fracture_faces'],
