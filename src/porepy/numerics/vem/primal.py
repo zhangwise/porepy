@@ -21,16 +21,16 @@ from porepy.utils import comp_geom as cg
 
 #------------------------------------------------------------------------------#
 
-class PrimalVEMMixedDim(SolverMixedDim):
-
-    def __init__(self, physics='flow'):
-        self.physics = physics
-
-        self.discr = PrimalVEM(self.physics)
-        self.discr_ndof = self.discr.ndof
-        self.coupling_conditions = PrimalCoupling(self.discr)
-
-        self.solver = Coupler(self.discr, self.coupling_conditions)
+#class PrimalVEMMixedDim(SolverMixedDim):
+#
+#    def __init__(self, physics='flow'):
+#        self.physics = physics
+#
+#        self.discr = PrimalVEM(self.physics)
+#        self.discr_ndof = self.discr.ndof
+#        self.coupling_conditions = None #PrimalCoupling(self.discr)
+#
+#        self.solver = Coupler(self.discr, self.coupling_conditions)
 
 #------------------------------------------------------------------------------#
 
@@ -196,14 +196,9 @@ class PrimalVEM(Solver):
 
         # assign the Dirichlet boundary conditions
         if bc and np.any(bc.is_dir):
-            nodes, _, _, = sps.find(g.face_nodes)
-
-            dir_nodes = np.array([\
-                         nodes[g.face_nodes.indptr[f]:g.face_nodes.indptr[f+1]]\
-                        for f in np.where(bc.is_dir)[0]]).ravel()
-
-            M[dir_nodes, :] *= 0
-            M[dir_nodes, dir_nodes] = norm
+            is_dir = np.where(bc.is_dir)[0]
+            M[is_dir, :] *= 0
+            M[is_dir, is_dir] = norm
 
         if bc_weight:
             return M, norm
@@ -243,48 +238,7 @@ class PrimalVEM(Solver):
 
         if np.any(bc.is_dir):
             is_dir = np.where(bc.is_dir)[0]
-            nodes, _, _, = sps.find(g.face_nodes)
-
-            size = np.power(g.dim, 2)*is_dir.size
-            I = np.empty(size, dtype=np.int)
-            J = np.empty(size, dtype=np.int)
-            dataIJ = np.empty(size)
-            idx = 0
-
-            size_rhs = g.dim*is_dir.size
-            data_rhs = np.empty(size_rhs)
-            I_rhs = np.empty(size_rhs, dtype=np.int)
-            idx_rhs = 0
-
-            for f in is_dir:
-                loc = slice(g.face_nodes.indptr[f], g.face_nodes.indptr[f+1])
-                nodes_loc = nodes[loc]
-
-                A = self.massH1(g.face_areas[f], g.dim-1)
-                b = bc_weight*g.face_areas[f]*bc_val[f]/g.dim
-
-                # Save values for H1-mass local matrix in the global structure
-                cols = np.tile(nodes_loc, (nodes_loc.size, 1))
-                loc_idx = slice(idx, idx+cols.size)
-                I[loc_idx] = cols.T.ravel()
-                J[loc_idx] = cols.ravel()
-                dataIJ[loc_idx] = A.ravel()
-                idx += cols.size
-
-                loc_idx = slice(idx_rhs, idx_rhs+nodes_loc.size)
-                I_rhs[loc_idx] = nodes_loc
-                data_rhs[loc_idx] = b.ravel()
-                idx_rhs += nodes_loc.size
-
-            # Construct the global matrices
-            M = sps.csr_matrix((dataIJ, (I, J)), shape=(rhs.size, rhs.size))
-            identity = (M.sum(axis=1) == 0).astype(np.float).ravel()
-            M += sps.diags(identity, offsets=[0], shape=M.shape)
-
-            M_rhs = sps.csr_matrix((data_rhs, (I_rhs, np.zeros(I_rhs.size))),
-                                    shape=(rhs.size, 1))
-
-            rhs = sps.linalg.spsolve(M, M_rhs)
+            rhs[is_dir] = bc_weight*bc_val[is_dir]
 
         return rhs
 
@@ -345,7 +299,8 @@ class PrimalVEM(Solver):
             for j in np.arange(num_nodes):
                 F[i, j] = np.sum(prod[i-1, node_faces[j, :]])
 
-        assert np.allclose(G, np.dot(F, D)), "G\n"+str(G)+"\nF*D\n"+str(np.dot(F,D))
+        assert np.allclose(G, np.dot(F, D)),\
+                                         "G\n"+str(G)+"\nF*D\n"+str(np.dot(F,D))
 
         # local matrix Pi_s
         Pi_s = np.linalg.solve(G, F)
@@ -353,139 +308,5 @@ class PrimalVEM(Solver):
 
         # local H1-stiff matrix
         return np.dot(Pi_s.T, np.dot(Gtilde, Pi_s)) + np.dot(I_Pi.T, I_Pi)
-
-#------------------------------------------------------------------------------#
-
-class PrimalCoupling(AbstractCoupling):
-
-#------------------------------------------------------------------------------#
-
-    def __init__(self, discr):
-        self.discr_ndof = discr.ndof
-
-#------------------------------------------------------------------------------#
-
-    def matrix_rhs(self, matrix, g_h, g_l, data_h, data_l, data_edge):
-        """
-        Construct the matrix (and right-hand side) for the coupling conditions.
-        Note: the right-hand side is not implemented now.
-
-        Parameters:
-            g_h: grid of higher dimension
-            g_l: grid of lower dimension
-            data_h: dictionary which stores the data for the higher dimensional
-                grid
-            data_l: dictionary which stores the data for the lower dimensional
-                grid
-            data: dictionary which stores the data for the edges of the grid
-                bucket
-
-        Returns:
-            cc: block matrix which store the contribution of the coupling
-                condition. See the abstract coupling class for a more detailed
-                description.
-        """
-        # pylint: disable=invalid-name
-
-        # Retrieve the number of degrees of both grids
-        # Create the block matrix for the contributions
-        g_m = data_edge['mortar_grid']
-        dof, cc = self.create_block_matrix([g_h, g_l, g_m])
-
-        # Recover the information for the grid-grid mapping
-        faces_h, cells_h, sign_h = sps.find(g_h.cell_faces)
-        ind_faces_h = np.unique(faces_h, return_index=True)[1]
-        cells_h = cells_h[ind_faces_h]
-        sign_h = sign_h[ind_faces_h]
-
-        # Velocity degree of freedom matrix
-        U = sps.diags(sign_h)
-
-        shape = (g_h.num_cells, g_m.num_cells)
-        hat_E_int = g_m.mortar_to_high_int()
-        hat_E_int = sps.bmat([[U*hat_E_int], [sps.csr_matrix(shape)]])
-
-        hat_P_avg = g_m.high_to_mortar_avg()
-        check_P_avg = g_m.low_to_mortar_avg()
-
-        cc[0, 2] = matrix[0, 0] * hat_E_int
-        cc[2, 0] = hat_E_int.T * matrix[0, 0]
-        cc[2, 2] = hat_E_int.T * matrix[0, 0] * hat_E_int
-
-        # Mortar mass matrix
-        inv_M = sps.diags(1./g_m.cell_volumes)
-
-        # Normal permeability and aperture of the intersection
-        inv_k = 1./(2.*data_edge['kn'])
-        aperture_h = data_h['param'].get_aperture()
-
-        # Inverse of the normal permability matrix
-        Eta = sps.diags(np.divide(inv_k, hat_P_avg*aperture_h[cells_h]))
-
-        matrix[2, 2] += inv_M*Eta
-
-        A = check_P_avg.T
-        shape = (g_l.num_faces, A.shape[1])
-        cc[1, 2] = sps.bmat([[sps.csr_matrix(shape)], [A]])
-        cc[2, 1] = cc[1, 2].T
-
-        matrix += cc
-        dof = np.where(hat_E_int.sum(axis=1).A.astype(np.bool))[0]
-        norm = np.linalg.norm(matrix[0, 0].diagonal(), np.inf)
-        matrix[0, 0][dof, :] *= 0
-        matrix[0, 0][dof, dof] = norm
-        matrix[0, 2][dof, :] *= 0
-
-        return matrix
-
-#------------------------------------------------------------------------------#
-
-class PrimalCouplingDFN(AbstractCoupling):
-
-#------------------------------------------------------------------------------#
-
-    def __init__(self, discr_ndof):
-
-        self.discr_ndof = discr_ndof
-
-#------------------------------------------------------------------------------#
-
-    def matrix_rhs(self, g_h, g_l, data_h, data_l, data_edge):
-        """
-        Construct the matrix (and right-hand side) for the coupling conditions
-        of a DFN. We use the Lagrange multiplier to impose continuity of the
-        normal fluxes at the intersections.
-        Note: the right-hand side is not implemented now.
-
-        Parameters:
-            g_h: grid of higher dimension
-            g_l: grid of lower dimension
-            data_h: Not used but kept for consistency
-            data_l: Not used but kept for consistency
-            data: Not used but kept for consistency
-
-        Returns:
-            cc: block matrix which store the contribution of the coupling
-                condition. See the abstract coupling class for a more detailed
-                description.
-        """
-        # pylint: disable=invalid-name
-
-        # Retrieve the number of degrees of both grids
-        # Create the block matrix for the contributions
-        dof, cc = self.create_block_matrix(g_h, g_l)
-
-        # Recover the information for the grid-grid mapping
-        cells_l, faces_h, _ = sps.find(data_edge['face_cells'])
-        faces, cells_h, sign = sps.find(g_h.cell_faces)
-        ind = np.unique(faces, return_index=True)[1]
-        sign = sign[ind][faces_h]
-
-        # Compute the off-diagonal terms
-        dataIJ, I, J = sign, cells_l, faces_h
-        cc[1, 0] = sps.csr_matrix((dataIJ, (I, J)), (dof[1], dof[0]))
-        cc[0, 1] = cc[1, 0].T
-
-        return cc
 
 #------------------------------------------------------------------------------#
