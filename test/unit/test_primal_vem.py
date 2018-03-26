@@ -4,7 +4,7 @@ import unittest
 
 from porepy.grids import grid, structured, simplex
 from porepy.params import tensor
-from porepy.params.bc import BoundaryCondition
+from porepy.params.bc import NodeBoundaryCondition
 from porepy.params.data import Parameters
 
 from porepy.numerics.vem import primal
@@ -22,8 +22,8 @@ class BasicsTest( unittest.TestCase ):
 
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
-        bf = g.tags['domain_boundary_faces'].nonzero()[0]
-        bc = BoundaryCondition(g, bf, bf.size*['neu'])
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
         solver = primal.PrimalVEM(physics='flow')
 
@@ -60,8 +60,8 @@ class BasicsTest( unittest.TestCase ):
 
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
-        bf = g.tags['domain_boundary_faces'].nonzero()[0]
-        bc = BoundaryCondition(g, bf, bf.size*['neu'])
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
         solver = primal.PrimalVEM(physics='flow')
 
@@ -97,8 +97,8 @@ class BasicsTest( unittest.TestCase ):
 
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
-        bf = g.tags['domain_boundary_faces'].nonzero()[0]
-        bc = BoundaryCondition(g, bf, bf.size*['neu'])
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
         solver = primal.PrimalVEM(physics='flow')
 
@@ -136,8 +136,8 @@ class BasicsTest( unittest.TestCase ):
 
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
-        bf = g.tags['domain_boundary_faces'].nonzero()[0]
-        bc = BoundaryCondition(g, bf, bf.size*['neu'])
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
         solver = primal.PrimalVEM(physics='flow')
 
@@ -168,8 +168,8 @@ class BasicsTest( unittest.TestCase ):
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
 
-        bf = g.tags['domain_boundary_faces'].nonzero()[0]
-        bc = BoundaryCondition(g, bf, bf.size * ['neu'])
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
         solver = primal.PrimalVEM(physics='flow')
 
         param = Parameters(g)
@@ -194,8 +194,8 @@ class BasicsTest( unittest.TestCase ):
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=kxx)
 
-        bf = g.tags['domain_boundary_faces'].nonzero()[0]
-        bc = BoundaryCondition(g, bf, bf.size*['neu'])
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
         solver = primal.PrimalVEM(physics='flow')
 
         param = Parameters(g)
@@ -210,23 +210,20 @@ class BasicsTest( unittest.TestCase ):
 
 #------------------------------------------------------------------------------#
 
-    def test_primal_vem_2d_iso_simplex_convergence(self):
+    def test_primal_vem_2d_iso_simplex_consistency(self):
 
         p_ex = lambda pt: pt[0, :]-2*pt[1, :]
 
-        g = simplex.StructuredTriangleGrid([1, 1], [1, 1])
+        g = simplex.StructuredTriangleGrid([10]*2, [1]*2)
         g.compute_geometry()
-
-        from porepy.viz.plot_grid import plot_grid
-        plot_grid(g, alpha=0, info='all')
 
         kxx = np.ones(g.num_cells)
         perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
 
-        bf = g.tags['domain_boundary_faces'].nonzero()[0]
-        bc = BoundaryCondition(g, bf, bf.size*['dir'])
-        bc_val = np.zeros(g.num_faces)
-        bc_val[bf] = p_ex(g.face_centers[:, bf])
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['dir'])
+        bc_val = np.zeros(g.num_nodes)
+        bc_val[bn] = p_ex(g.nodes[:, bn])
         solver = primal.PrimalVEM(physics='flow')
 
         param = Parameters(g)
@@ -236,9 +233,37 @@ class BasicsTest( unittest.TestCase ):
 
         M, rhs = solver.matrix_rhs(g, {'param': param})
         p = sps.linalg.spsolve(M, rhs)
-        print(p_ex(g.nodes))
-        print(p)
-        print(rhs)
+        assert np.allclose(p_ex(g.nodes), p)
+
+#------------------------------------------------------------------------------#
+
+    def aa_test_primal_vem_2d_iso_simplex_convergence(self):
+
+        p_ex = lambda pt: np.sin(pt[0, :])-2*pt[1, :]
+
+        g = simplex.StructuredTriangleGrid([10]*2, [1]*2)
+        g.compute_geometry()
+
+        from porepy.viz.plot_grid import plot_grid
+        plot_grid(g, alpha=0, info='all')
+
+        kxx = np.ones(g.num_cells)
+        perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
+
+        bn = g.tags['domain_boundary_nodes'].nonzero()[0]
+        bc = NodeBoundaryCondition(g, bn, bn.size*['dir'])
+        bc_val = np.zeros(g.num_nodes)
+        bc_val[bn] = p_ex(g.nodes[:, bn])
+        solver = primal.PrimalVEM(physics='flow')
+
+        param = Parameters(g)
+        param.set_tensor(solver, perm)
+        param.set_bc(solver, bc)
+        param.set_bc_val(solver, bc_val)
+
+        M, rhs = solver.matrix_rhs(g, {'param': param})
+        p = sps.linalg.spsolve(M, rhs)
+        assert np.allclose(p_ex(g.nodes), p)
 
 #------------------------------------------------------------------------------#
 
@@ -273,5 +298,4 @@ def matrix_for_test_primal_vem_3d_iso_cart():
     [0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,1.562499999999998890e-01,-3.125000000000002082e-02,0.000000000000000000e+00,-3.125000000000003469e-02,-2.187499999999999722e-01,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,0.000000000000000000e+00,-3.125000000000004857e-02,-2.187499999999999722e-01,0.000000000000000000e+00,-2.187499999999999445e-01,5.937500000000001110e-01]])
 
 #------------------------------------------------------------------------------#
-BasicsTest().test_primal_vem_2d_iso_simplex_convergence()
 
