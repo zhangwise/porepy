@@ -140,6 +140,7 @@ def simplex_grid(fracs=None, domain=None, network=None, subdomains=[], verbose=0
         print('Mesh construction completed. Total time ' +
               str(time.time() - tm_tot))
 
+    tag_nodes(gb)
     return gb
 
 #------------------------------------------------------------------------------#
@@ -280,6 +281,7 @@ def dfn(fracs, conforming, intersections=None, keep_geo=False, tol=1e-4,
     tic = time.time()
     split_grid.split_fractures(gb)
     logger.warn('Done. Elapsed time ' + str(time.time() - tic))
+    tag_nodes(gb)
     return gb
 
 
@@ -336,6 +338,7 @@ def from_gmsh(file_name, dim, **kwargs):
     gb.compute_geometry()
     # Split the grids.
     split_grid.split_fractures(gb)
+    tag_nodes(gb)
     return gb
 
 #------------------------------------------------------------------------------#
@@ -406,6 +409,7 @@ def cart_grid(fracs, nx, **kwargs):
     # Split grid.
     split_grid.split_fractures(gb, **kwargs)
     gb.assign_node_ordering()
+    tag_nodes(gb)
     return gb
 
 
@@ -467,6 +471,21 @@ def tag_faces(grids, check_highest_dim=True):
                 domain_boundary_tags[bnd_faces_l[is_tip == False]] = True
                 g.tags['domain_boundary_faces'] = domain_boundary_tags
 
+    # Add tip and domain boundary information for the 0d grids
+    for g in grids[-1]:
+        if g.dim == 0:
+            g.tags['domain_boundary_faces'] = np.zeros(g.num_faces, dtype=np.bool)
+            g.tags['tip_faces'] = np.ones(g.num_faces, dtype=np.bool)
+
+def tag_nodes(gb):
+    """
+    Tag nodes of grids, including 'domain_boundary_nodes'
+    Parameters:
+        gb (GridBucket): the grid bucket.
+
+    """
+    for g, _ in gb:
+        g.update_boundary_node_tag()
 
 def nodes_per_face(g):
     """
