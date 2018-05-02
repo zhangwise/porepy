@@ -245,6 +245,73 @@ class PrimalVEM(Solver):
 #------------------------------------------------------------------------------#
 
     def stiffH1(self, K, c_center, c_volume, normals, diam, coord, node_faces):
+        """ Compute the local stiffness H1 matrix using the primal vem approach.
+
+        Parameters
+        ----------
+        K : ndarray (g.dim, g.dim)
+            Permeability of the cell.
+        c_center : array (g.dim)
+            Cell center.
+        c_volume : scalar
+            Cell volume.
+        normals : ndarray (g.dim, num_faces_of_cell)
+            Normal of the cell faces weighted by the face areas.
+        diam : scalar
+            Diameter of the cell.
+        weight : scalar
+            weight for the stabilization term. Optional, default = 0.
+
+        Return
+        ------
+        out: ndarray (num_faces_of_cell, num_faces_of_cell)
+            Local mass Hdiv matrix.
+        """
+        # Allow short variable names in this function
+        # pylint: disable=invalid-name
+
+        dim = coord.shape[0]
+        num_nodes = coord.shape[1]
+        num_mono = dim+1
+
+        mono = np.r_[[lambda _: 1],
+                     [lambda pt, i=i: (pt[i] - c_center[i])/diam\
+                                                       for i in np.arange(dim)]]
+
+        grad = np.block([[np.zeros(dim)], [np.eye(num_mono-1)/diam]])
+
+        # local matrix D
+        D = np.array([[m(c) for m in mono] for c in coord.T])
+
+        # local matrix G
+        Gtilde = np.zeros((num_mono, num_mono))
+        Gtilde[1:, 1:] = np.dot(grad[1:, :], grad[1:, :].T)*c_volume
+        G = Gtilde.copy()
+        G[0, :] = D.sum(axis=0)/num_nodes
+
+        # local matrix F
+        F = np.zeros((num_mono, num_nodes))
+        F[0, :] = np.ones(num_nodes)/num_nodes
+        prod = np.dot(grad[1:, :], normals)/2.**(dim-1)
+
+        # Loop on the monomials
+        for i in np.arange(1, num_mono):
+            for j in np.arange(num_nodes):
+                F[i, j] = np.sum(prod[i-1, node_faces[j, :]])
+
+        assert np.allclose(G, np.dot(F, D)),\
+                                         "G\n"+str(G)+"\nF*D\n"+str(np.dot(F,D))
+
+        # local matrix Pi_s
+        Pi_s = np.linalg.solve(G, F)
+        I_Pi = np.eye(num_nodes) - np.dot(D, Pi_s)
+
+        # local H1-stiff matrix
+        return np.dot(Pi_s.T, np.dot(Gtilde, Pi_s)) + np.dot(I_Pi.T, I_Pi)
+
+#------------------------------------------------------------------------------#
+
+    def massH1(self, K, c_center, c_volume, normals, diam, coord, node_faces):
         """ Compute the local mass Hdiv matrix using the mixed vem approach.
 
         Parameters
@@ -289,10 +356,10 @@ class PrimalVEM(Solver):
         G = Gtilde.copy()
         G[0, :] = D.sum(axis=0)/num_nodes
 
-        prod = np.dot(grad[1:, :], normals)/2.**(dim-1)
-
+        # local matrix F
         F = np.zeros((num_mono, num_nodes))
         F[0, :] = np.ones(num_nodes)/num_nodes
+        prod = np.dot(grad[1:, :], normals)/2.**(dim-1)
 
         # Loop on the monomials
         for i in np.arange(1, num_mono):
@@ -306,7 +373,12 @@ class PrimalVEM(Solver):
         Pi_s = np.linalg.solve(G, F)
         I_Pi = np.eye(num_nodes) - np.dot(D, Pi_s)
 
-        # local H1-stiff matrix
-        return np.dot(Pi_s.T, np.dot(Gtilde, Pi_s)) + np.dot(I_Pi.T, I_Pi)
+        # local H1-mass matrix
+        return np.dot(Pi_s.T, np.dot(H, Pi_s)) + \
+               c_volume*np.dot(I_Pi.T, I_Pi)
+
+#------------------------------------------------------------------------------#
+
+
 
 #------------------------------------------------------------------------------#
