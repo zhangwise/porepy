@@ -1,14 +1,7 @@
 import numpy as np
 import scipy.sparse as sps
 import unittest
-
-from porepy.grids import grid, structured, simplex
-from porepy.params import tensor
-from porepy.params.bc import NodeBoundaryCondition
-from porepy.params.data import Parameters
-
-from porepy.numerics.vem import primal
-import porepy.utils.comp_geom as cg
+import porepy as pp
 
 #------------------------------------------------------------------------------#
 
@@ -17,17 +10,17 @@ class BasicsTest( unittest.TestCase ):
 #------------------------------------------------------------------------------#
 
     def test_primal_vem_1d_iso(self):
-        g = structured.CartGrid(3, 1)
+        g = pp.structured.CartGrid(3, 1)
         g.compute_geometry()
 
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
+        perm = pp.SecondOrderTensor(3, kxx, kyy=1, kzz=1)
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
-        solver = primal.PrimalVEM(physics='flow')
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         M = solver.matrix(g, {'param': param}).todense()
@@ -36,6 +29,17 @@ class BasicsTest( unittest.TestCase ):
                              [-3.,  6., -3.,  0.],
                              [ 0., -3.,  6., -3.],
                              [ 0.,  0., -3.,  3.]])
+
+        assert np.allclose(M, M.T)
+        assert np.allclose(M, M_known)
+
+        solver = pp.PrimalMassVEM(physics='flow')
+        M = solver.matrix(g, {'param': param}).todense()
+
+        M_known = np.matrix([[5,  1,   0,   0],
+                             [1, 18,  -7,   0],
+                             [0, -7,  42, -23],
+                             [0,  0, -23,  29]])/36.
 
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
@@ -55,17 +59,17 @@ class BasicsTest( unittest.TestCase ):
         cell_faces = sps.csc_matrix([[1], [1], [1]])
         name = "test"
 
-        g = grid.Grid(dim, nodes, face_nodes, cell_faces, name)
+        g = pp.Grid(dim, nodes, face_nodes, cell_faces, name)
         g.compute_geometry()
 
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
+        perm = pp.SecondOrderTensor(3, kxx, kyy=1, kzz=1)
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
-        solver = primal.PrimalVEM(physics='flow')
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         M = solver.matrix(g, {'param': param}).todense()
@@ -73,6 +77,19 @@ class BasicsTest( unittest.TestCase ):
         M_known = np.matrix([[  2, -1., -1.],
                              [ -1,  1.,  0.],
                              [ -1,  0.,  1.]])/2.
+
+        assert np.allclose(M, M.T)
+        assert np.allclose(M, M_known)
+
+        solver = pp.PrimalMassVEM(physics='flow')
+
+        M = solver.matrix(g, {'param': param}).todense()
+        np.set_printoptions(precision=16, linewidth=500)
+        print(repr(M/0.0833333333333333))
+
+        M_known = np.matrix([[1, .5, .5],
+                             [.5, 1, .5],
+                             [.5, .5, 1]])/12
 
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
@@ -92,17 +109,17 @@ class BasicsTest( unittest.TestCase ):
         cell_faces = sps.csc_matrix([[1], [1], [1], [1]])
         name = "test"
 
-        g = grid.Grid(dim, nodes, face_nodes, cell_faces, name)
+        g = pp.Grid(dim, nodes, face_nodes, cell_faces, name)
         g.compute_geometry()
 
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
+        perm = pp.SecondOrderTensor(3, kxx, kyy=1, kzz=1)
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
-        solver = primal.PrimalVEM(physics='flow')
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         M = solver.matrix(g, {'param': param}).todense()
@@ -111,6 +128,16 @@ class BasicsTest( unittest.TestCase ):
                              [-1.,  3., -1., -1.],
                              [-1., -1.,  3., -1.],
                              [-1., -1., -1.,  3.]])/4
+
+        assert np.allclose(M, M.T)
+        assert np.allclose(M, M_known)
+
+        solver = pp.PrimalMassVEM(physics='flow')
+        M = solver.matrix(g, {'param': param}).todense()
+        M_known = np.matrix([[17, -9, 13, -9],
+                             [-9, 17, -9, 13],
+                             [13, -9, 17, -9],
+                             [-9, 13, -9, 17]])/48.
 
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
@@ -130,18 +157,18 @@ class BasicsTest( unittest.TestCase ):
         cell_faces = sps.csc_matrix([[1], [1], [1], [1], [1]])
         name = "test"
 
-        g = grid.Grid(dim, nodes, face_nodes, cell_faces, name)
+        g = pp.Grid(dim, nodes, face_nodes, cell_faces, name)
         g.compute_geometry()
 
 
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx, kyy=1, kzz=1)
+        perm = pp.SecondOrderTensor(3, kxx, kyy=1, kzz=1)
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['neu'])
 
-        solver = primal.PrimalVEM(physics='flow')
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         M = solver.matrix(g, {'param': param}).todense()
@@ -156,23 +183,32 @@ class BasicsTest( unittest.TestCase ):
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
 
+        solver = pp.PrimalMassVEM(physics='flow')
+        M = solver.matrix(g, {'param': param}).todense()
+        M_known = np.matrix([\
+                  [   131/50., -1151/700.,   167/100.,   167/100., -1151/700.],
+                  [-1151/700.,  1221/226., -1448/357.,  -37/4900.,  1511/593.],
+                  [  167/100., -1448/357.,  1475/232.,  -791/345.,  -37/4900.],
+                  [  167/100.,  -37/4900.,  -791/345.,  1475/232., -1448/357.],
+                  [-1151/700.,  1511/593.,  -37/4900., -1448/357.,  1221/226.]])
+
+        assert np.allclose(M, M.T)
+        assert np.allclose(M, M_known)
+
 #------------------------------------------------------------------------------#
 
     def test_primal_vem_2d_iso_simplex(self):
-        g = simplex.StructuredTriangleGrid([1, 1], [1, 1])
+        g = pp.simplex.StructuredTriangleGrid([1, 1], [1, 1])
         g.compute_geometry()
 
-        from porepy.viz.plot_grid import plot_grid
-        plot_grid(g, alpha=0, info='all')
-
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
+        perm = pp.SecondOrderTensor(3, kxx=kxx, kyy=kxx, kzz=1)
 
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
-        solver = primal.PrimalVEM(physics='flow')
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['neu'])
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         M = solver.matrix(g, {'param': param}).todense()
@@ -185,25 +221,52 @@ class BasicsTest( unittest.TestCase ):
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
 
+        solver = pp.PrimalMassVEM(physics='flow')
+        M = solver.matrix(g, {'param': param}).todense()
+        np.set_printoptions(precision=1, linewidth=500)
+        print(repr(M*24))
+
+        M_known = np.matrix([[ 4, 1, 1, 2],
+                             [ 1, 2, 0, 1],
+                             [ 1, 0, 2, 1],
+                             [ 2, 1, 1, 4]])/24.
+
+
+        assert np.allclose(M, M.T)
+        assert np.allclose(M, M_known)
+
+
 #------------------------------------------------------------------------------#
 
     def test_primal_vem_3d_iso_cart(self):
-        g = structured.CartGrid([2, 2, 2], [1, 1, 1])
+        g = pp.structured.CartGrid([2, 2, 2], [1, 1, 1])
         g.compute_geometry()
 
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=kxx)
+        perm = pp.SecondOrderTensor(3, kxx=kxx, kyy=kxx, kzz=kxx)
 
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['neu'])
-        solver = primal.PrimalVEM(physics='flow')
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['neu'])
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         M = solver.matrix(g, {'param': param}).todense()
         #np.savetxt('matrix.txt', M, delimiter=',', newline='],\n[')
         M_known = matrix_for_test_primal_vem_3d_iso_cart()
+
+        assert np.allclose(M, M.T)
+        assert np.allclose(M, M_known)
+
+        solver = pp.PrimalMassVEM(physics='flow')
+        M = solver.matrix(g, {'param': param}).todense()
+        np.set_printoptions(precision=16, linewidth=500)
+        np.savetxt('matrix.txt', M, delimiter=',', newline='],\n[')
+
+        M_known = np.matrix([[1, .5, .5],
+                             [.5, 1, .5],
+                             [.5, .5, 1]])/12
 
         assert np.allclose(M, M.T)
         assert np.allclose(M, M_known)
@@ -214,19 +277,19 @@ class BasicsTest( unittest.TestCase ):
 
         p_ex = lambda pt: pt[0, :]-2*pt[1, :]
 
-        g = simplex.StructuredTriangleGrid([10]*2, [1]*2)
+        g = pp.simplex.StructuredTriangleGrid([10]*2, [1]*2)
         g.compute_geometry()
 
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
+        perm = pp.SecondOrderTensor(3, kxx=kxx, kyy=kxx, kzz=1)
 
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['dir'])
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['dir'])
         bc_val = np.zeros(g.num_nodes)
         bc_val[bn] = p_ex(g.nodes[:, bn])
-        solver = primal.PrimalVEM(physics='flow')
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         param.set_bc_val(solver, bc_val)
@@ -240,23 +303,25 @@ class BasicsTest( unittest.TestCase ):
     def aa_test_primal_vem_2d_iso_simplex_convergence(self):
 
         p_ex = lambda pt: np.sin(pt[0, :])-2*pt[1, :]
+        source_ex = lambda pt: np.sin(pt[0, :])
 
-        g = simplex.StructuredTriangleGrid([10]*2, [1]*2)
+        N = 3
+        g = pp.simplex.StructuredTriangleGrid([N]*2, [1]*2)
         g.compute_geometry()
 
         from porepy.viz.plot_grid import plot_grid
         plot_grid(g, alpha=0, info='all')
 
         kxx = np.ones(g.num_cells)
-        perm = tensor.SecondOrder(3, kxx=kxx, kyy=kxx, kzz=1)
+        perm = pp.SecondOrderTensor(3, kxx=kxx, kyy=kxx, kzz=1)
 
         bn = g.tags['domain_boundary_nodes'].nonzero()[0]
-        bc = NodeBoundaryCondition(g, bn, bn.size*['dir'])
+        bc = pp.NodeBoundaryCondition(g, bn, bn.size*['dir'])
         bc_val = np.zeros(g.num_nodes)
         bc_val[bn] = p_ex(g.nodes[:, bn])
-        solver = primal.PrimalVEM(physics='flow')
+        solver = pp.PrimalVEM(physics='flow')
 
-        param = Parameters(g)
+        param = pp.Parameters(g)
         param.set_tensor(solver, perm)
         param.set_bc(solver, bc)
         param.set_bc_val(solver, bc_val)
@@ -299,3 +364,4 @@ def matrix_for_test_primal_vem_3d_iso_cart():
 
 #------------------------------------------------------------------------------#
 
+#BasicsTest().test_primal_vem_2d_iso_simplex_convergence()
