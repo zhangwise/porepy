@@ -35,6 +35,8 @@ from porepy.numerics.fv.source import Integral, IntegralMixedDim
 
 # Virtual elements, elliptic
 from porepy.numerics.vem.vem_dual import DualVEM, DualVEMMixedDim
+from porepy.numerics.vem.primal import PrimalVEM #, PrimalVEMMixedDim
+from porepy.numerics.vem.primal_mass import PrimalMassVEM #, PrimalMassVEMMixedDim
 from porepy.numerics.vem.vem_source import DualSource, DualSourceMixedDim
 from porepy.numerics.elliptic import DualEllipticModel
 
@@ -65,7 +67,7 @@ from porepy.grids.point_grid import PointGrid
 from porepy.fracs.fractures import Fracture, EllipticFracture, FractureNetwork
 
 # Parameters
-from porepy.params.bc import BoundaryCondition, BoundaryConditionVectorial
+from porepy.params.bc import BoundaryCondition, BoundaryConditionVectorial, NodeBoundaryCondition
 from porepy.params.tensor import SecondOrderTensor, FourthOrderTensor
 from porepy.params.data import Parameters
 from porepy.params.rock import UnitRock, Shale, SandStone, Granite
