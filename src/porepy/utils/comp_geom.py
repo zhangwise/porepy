@@ -11,6 +11,7 @@ import logging
 import time
 import numpy as np
 from sympy import geometry as geom
+from scipy.special import factorial
 
 from porepy.utils import setmembership
 
@@ -2501,6 +2502,124 @@ def bounding_box(pts, overlap=0):
         domain['zmin'] = min_coord[2] - dx[2] * overlap
         domain['zmax'] = max_coord[2] + dx[2] * overlap
     return domain
+
+#------------------------------------------------------------------------------#
+
+def quadrature_rule(center, coord, node_faces, ws, xi):
+    """
+    Compute the Gaussian quadrature points and weights for a generic star-shaped
+    cell. Some of the points may be repeated, since we partition the cell in
+    simplices.
+    """
+    dim = coord.shape[0]
+
+    pts = np.zeros((dim, ws.size*node_faces.shape[1]))
+    weights = np.zeros(pts.shape[1])
+
+    i = 0
+    for node_face in node_faces.T: # devo fare un altro loop in cui organizzo le
+    # coord
+        print(node_face)
+        print(node_faces)
+        print(coord)
+        pts_loc = np.column_stack((coord[:, node_face], center))
+        vol = simplex_volume(pts_loc)
+        for w, x in zip(ws, xi):
+            print(pts_loc, x)
+            pts[:, i] = np.multiply(pts_loc, np.tile(x, (dim, 1))).sum(axis=1)
+            weights[i] = vol*w
+            i += 1
+    return pts, weights
+
+#------------------------------------------------------------------------------#
+
+def simplex_reference_quadrature(dim, rule=None):
+    """
+    Return the Gaussian quadrature rule on a dim-dimensional reference simplex.
+    If rule is not specified the more accurate rule is provided for the
+    dimension.
+    In 1d the available rules are: "1-pt", "2-pt", "3-pt", and "4-pt". In 2d the
+    available rules are: "1-pt", "3-pt", "4-pt". In 3d the available rules are
+    "1-pt", "4-pt", "5-pt". Specify the rule name as a string.
+
+    Parameters:
+        dim: the dimension of the simplex
+        rule: name of the quadrature rule. If not given the most accurate rule
+        is returned.
+    Return:
+        ws: the weights
+        xi: the points
+    """
+
+    assert dim >=0 and dim <= 3
+    # "1-pt"
+    if dim == 0:
+        return np.ones(1), np.ones(1)
+    elif dim == 1:
+        if rule == "1-pt":
+            ws = np.ones(1)
+            xi = np.ones(1)/2.
+        elif rule == "2-pt":
+            ws = np.ones(2)/2.
+            xi = 0.5+np.sqrt(3)/6*np.array([-1, 1])
+        elif rule == "3-pt":
+            ws = np.array([5, 8, 5])/18.
+            xi = 0.5+np.array([-1, 0, 1])*np.sqrt(15)/10.
+        elif rule == "4-pt" or rule == None:
+            ws = (18+np.array([-1, 1, 1, -1])*np.sqrt(30))/72.
+            xi = 0.5+np.multiply(np.array([-1, -1, 1, 1]),
+                       np.sqrt(525+70*np.sqrt(30)*np.array([1, -1, -1, 1]))/70.)
+        else:
+            raise ValueError("Quadrature rule not defined")
+    elif dim == 2:
+        if rule == "1-pt":
+            ws = np.ones(1)
+            xi = np.ones(3)/3.
+        if rule == "3-pt":
+            ws = np.ones(3)/3.
+            xi = np.array([[1, 1, 0], [1, 0, 1], [0, 1, 1]])/2.
+        if rule == "4-pt" or rule == None:
+            ws = np.array([-27, 25, 25, 25])/48.
+            xi = np.array([[5, 5, 5], [9, 3, 3], [3, 9, 3], [3, 3, 9]])/15.
+        else:
+            raise ValueError("Quadrature rule not defined")
+    elif dim == 3:
+        if rule == "1-pt":
+            ws = np.ones(1)
+            xi = np.ones(4)/4.
+        if rule == "4-pt":
+            ws = np.ones(4)/4.
+            xi = (1-np.sqrt(5)/5.)*np.ones((4, 4))/4.
+            np.fill_diagonal(xi, (1+3*np.sqrt(5)/5.)/4.)
+        if rule == "5-pt" or rule == None:
+            ws = np.array([-16, 9, 9, 9, 9])/20.
+            xi = np.array([[6, 6, 6, 6], [12, 4, 4, 4], [4, 12, 4, 4],
+                           [4, 4, 12, 4], [4, 4, 4, 12]])/24.
+        else:
+            raise ValueError("Quadrature rule not defined")
+    return ws, xi
+
+#------------------------------------------------------------------------------#
+
+def simplex_volume(pts):
+    """
+    Compute the volume of an (pts.shape[1]-1)-dimensional simplex by using the
+    Cayley-Menger determinatn.
+
+    See http://mathworld.wolfram.com/Cayley-MengerDeterminant.html
+
+    Parameters:
+        pts: np.ndarray (nd x npt). Points that define the simplex.
+             nd should be 1, 2 or 3
+    """
+    dim = pts.shape[1]-1
+    B_hat = np.zeros((dim+2, dim+2))
+    B_hat[0, 1:] = 1
+    for i in np.arange(pts.shape[1]):
+        for j in np.arange(i, pts.shape[1]):
+            B_hat[i+1, j+1] = np.linalg.norm(pts[:, i] - pts[:, j])**2
+    coeff = (-1)**(dim+1)/(2**dim)/(factorial(dim)**2)
+    return np.sqrt(coeff*np.linalg.det(B_hat+B_hat.T))
 
 #------------------------------------------------------------------------------#
 
