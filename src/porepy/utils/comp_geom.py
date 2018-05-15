@@ -2612,14 +2612,15 @@ def simplex_volume(pts):
         pts: np.ndarray (nd x npt). Points that define the simplex.
              nd should be 1, 2 or 3
     """
+    pts = np.atleast_2d(pts)
     dim = pts.shape[1]-1
-    B_hat = np.zeros((dim+2, dim+2))
-    B_hat[0, 1:] = 1
+    B = np.zeros((dim+2, dim+2))
+    B[0, 1:] = 1
     for i in np.arange(pts.shape[1]):
         for j in np.arange(i, pts.shape[1]):
-            B_hat[i+1, j+1] = np.linalg.norm(pts[:, i] - pts[:, j])**2
+            B[i+1, j+1] = np.linalg.norm(pts[:, i] - pts[:, j])**2
     coeff = (-1)**(dim+1)/(2**dim)/(factorial(dim)**2)
-    return np.sqrt(coeff*np.linalg.det(B_hat+B_hat.T))
+    return np.sqrt(coeff*np.linalg.det(B+B.T))
 
 #------------------------------------------------------------------------------#
 
