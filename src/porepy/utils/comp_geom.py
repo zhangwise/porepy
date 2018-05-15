@@ -2511,6 +2511,8 @@ def quadrature_rule(center, coord, node_faces, ws, xi):
     cell. Some of the points may be repeated, since we partition the cell in
     simplices.
     """
+    center = np.atleast_2d(center)
+    coord = np.atleast_2d(coord)
     dim = coord.shape[0]
 
     pts = np.zeros((dim, ws.size*node_faces.shape[1]))
