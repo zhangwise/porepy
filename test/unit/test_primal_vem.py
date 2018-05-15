@@ -84,9 +84,6 @@ class BasicsTest( unittest.TestCase ):
         solver = pp.PrimalMassVEM(physics='flow')
 
         M = solver.matrix(g, {'param': param}).todense()
-        np.set_printoptions(precision=16, linewidth=500)
-        print(repr(M/0.0833333333333333))
-
         M_known = np.matrix([[1, .5, .5],
                              [.5, 1, .5],
                              [.5, .5, 1]])/12
