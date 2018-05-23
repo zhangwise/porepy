@@ -112,23 +112,27 @@ def add_data_advection(gb, domain, deltaT, tol):
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
-def main(export_folder='result', network='network.csv', tol=1e-3):
+def main(export_folder='result', network='network.csv', tol=1e-5):
     T = 40 * np.pi * 1e7
     Nt = 20
     deltaT = T / Nt
     export_every = 1
-    if_coarse = False
+    if_coarse = True
 
-    h_f = 3
-    h_b = 10
+    h_f = 10
+    h_b = 100
     h_min = 0.01
     mesh_kwargs = {'mesh_size_frac': h_f,
                    'mesh_size_bound': h_b,
                    'mesh_size_min': h_min,
                    'tol': tol}
+
+    kwargs = {}
+    kwargs['rotation_matrix'] = pp.cg.rot(-2*np.pi/4.5, [0, 0, 1])[0:2, 0:2]
     gb, domain = pp.importer.dfm_2d_from_csv(network, mesh_kwargs,
-                                             return_domain=True)
+                                                   return_domain=True, **kwargs)
     gb.compute_geometry()
+
     if if_coarse:
         pp.coarsening.coarsen(gb, 'by_volume')
     gb.assign_node_ordering()
@@ -208,12 +212,10 @@ if __name__ == "__main__":
     networks = select_networks('./networks/')
     i = 0
     for name, network, network_topo in networks.T:
-        if i == 0:
-            i += 1
-            continue
         print("processing "+name)
         export_folder='result_'+name+'/'
         main(export_folder, network)
+        print("processing "+name+" topo")
         export_folder='result_'+name+'_topo/'
         main(export_folder, network_topo)
         ss
