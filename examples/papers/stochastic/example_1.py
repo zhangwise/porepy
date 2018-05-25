@@ -4,6 +4,7 @@ import os
 import sys
 
 import porepy as pp
+from porepy import cg
 from select_networks import select_networks
 
 #------------------------------------------------------------------------------#
@@ -14,8 +15,8 @@ def add_data_darcy(gb, domain, tol):
     apert = 1e-2
 
     km = 7.5 * 1e-11
-    kf_t = 1e-5 * km
-    kf_n = 1e-5 * km
+    kf_t = 1e5 * km # low 1e-5 * km - high 1e5 * km
+    kf_n = kf_t
 
     for g, d in gb:
         param = pp.Parameters(g)
@@ -23,7 +24,7 @@ def add_data_darcy(gb, domain, tol):
         rock = g.dim == gb.dim_max()
         kxx = (km if rock else kf_t) * np.ones(g.num_cells)
         d['is_tangential'] = True
-        if g.dim == 2:
+        if rock:
             perm = pp.SecondOrderTensor(g.dim, kxx=kxx, kyy=kxx, kzz=1)
         else:
             perm = pp.SecondOrderTensor(g.dim, kxx=kxx, kyy=1, kzz=1)
@@ -78,7 +79,10 @@ def add_data_advection(gb, domain, deltaT, tol):
         source = np.zeros(g.num_cells)
         param.set_source("transport", source)
 
-        param.set_porosity(1)
+        if rock:
+            param.set_porosity(0.3*np.ones(g.num_cells))
+        else:
+            param.set_porosity(np.ones(g.num_cells))
 
         bound_faces = g.tags['domain_boundary_faces'].nonzero()[0]
         if bound_faces.size != 0:
@@ -110,27 +114,44 @@ def add_data_advection(gb, domain, deltaT, tol):
         d['discharge'] = gb.node_props(g, 'discharge')
 
 #------------------------------------------------------------------------------#
+
+def import_mesh(network, tol, ttol, mesh_kwargs):
+    pts, edges = pp.importer.lines_from_csv(network)
+    R = cg.rot(-2*np.pi/4.5, [0, 0, 1.])[0:2, 0:2]
+    pts = np.dot(R, pts)
+
+    pts = cg.snap_points_to_segments(pts, edges, tol=ttol)
+    pts, edges = cg.remove_edge_crossings(pts, edges, tol=tol)
+
+    # Ensure unique description of points
+    pts, _, old_2_new = pp.utils.setmembership.unique_columns_tol(pts, tol=ttol)
+    edges[:2] = old_2_new[edges[:2]]
+    to_remove = np.where(edges[0, :] == edges[1, :])[0]
+    edges = np.delete(edges, to_remove, axis=1)
+
+    f_set = np.array([pts[:, e] for e in edges.T])
+
+    domain = cg.bounding_box(pts)
+    return pp.meshing.simplex_grid(f_set, domain, **mesh_kwargs), domain
+
 #------------------------------------------------------------------------------#
 
-def main(export_folder='result', network='network.csv', tol=1e-5):
-    T = 40 * np.pi * 1e7
-    Nt = 20
+def main(export_folder='result', network='network.csv', tol=1e-4):
+    T = 10 * np.pi * 1e7 # low 60 - high 10
+    Nt = 60*24
     deltaT = T / Nt
-    export_every = 1
+    export_every = 12
     if_coarse = True
 
-    h_f = 10
-    h_b = 100
-    h_min = 0.01
+    h_f = 40
+    h_b = 200
+    h_min = 2
     mesh_kwargs = {'mesh_size_frac': h_f,
                    'mesh_size_bound': h_b,
                    'mesh_size_min': h_min,
                    'tol': tol}
 
-    kwargs = {}
-    kwargs['rotation_matrix'] = pp.cg.rot(-2*np.pi/4.5, [0, 0, 1])[0:2, 0:2]
-    gb, domain = pp.importer.dfm_2d_from_csv(network, mesh_kwargs,
-                                                   return_domain=True, **kwargs)
+    gb, domain = import_mesh(network, tol, 1e2*tol, mesh_kwargs)
     gb.compute_geometry()
 
     if if_coarse:
@@ -209,13 +230,17 @@ def main(export_folder='result', network='network.csv', tol=1e-5):
                delimiter=',')
 
 if __name__ == "__main__":
+    base = 'conductive_result_'
+
+    export_folder = base+'original/'
+    network = './networks/original/original_porepy.csv'
+    main(export_folder, network)
+
     networks = select_networks('./networks/')
-    i = 0
     for name, network, network_topo in networks.T:
         print("processing "+name)
-        export_folder='result_'+name+'/'
+        export_folder = base+name+'/'
         main(export_folder, network)
         print("processing "+name+" topo")
-        export_folder='result_'+name+'_topo/'
+        export_folder = base+name+'_topo/'
         main(export_folder, network_topo)
-        ss
