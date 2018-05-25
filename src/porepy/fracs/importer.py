@@ -206,8 +206,6 @@ def dfm_2d_from_csv(f_name, mesh_kwargs, domain=None, return_domain=False, \
 
     """
     pts, edges = lines_from_csv(f_name, tol=tol, **kwargs)
-    if kwargs.get('rotation_matrix') is not None:
-        pts = np.dot(kwargs['rotation_matrix'], pts)
     f_set = np.array([pts[:, e] for e in edges.T])
 
     # Define the domain as bounding-box if not defined
