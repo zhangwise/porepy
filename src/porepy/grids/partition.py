@@ -14,8 +14,10 @@ import scipy.sparse as sps
 try:
     import pymetis
 except ImportError:
-    warnings.warn('Could not import pymetis. Some functions will not work as\
-    intended')
+    warnings.warn(
+        "Could not import pymetis. Some functions will not work as\
+    intended"
+    )
 
 from porepy.grids.grid import Grid
 from porepy.grids import structured
@@ -86,10 +88,11 @@ def partition_structured(g, coarse_dims=None, num_part=None):
 
     """
 
-
     if (coarse_dims is None) and (num_part is None):
-        raise ValueError('Either coarse dimensions or number of coarse cells \
-                         must be specified')
+        raise ValueError(
+            "Either coarse dimensions or number of coarse cells \
+                         must be specified"
+        )
 
     nd = g.dim
     fine_dims = g.cart_dims
@@ -104,7 +107,7 @@ def partition_structured(g, coarse_dims=None, num_part=None):
     ind = []
     for i in range(nd):
         # Fine indexes where the coarse index will increase
-        incr_ind = np.arange(0, fine_dims[i], fine_per_coarse[i], dtype='i')
+        incr_ind = np.arange(0, fine_dims[i], fine_per_coarse[i], dtype="i")
 
         # If the coarse dimension is not an exact multiple of the fine, there
         # will be an extra cell in this dimension. Remove this.
@@ -125,17 +128,17 @@ def partition_structured(g, coarse_dims=None, num_part=None):
     if nd == 2:
         xi, yi = np.meshgrid(ind[0], ind[1])
         # y-index jumps in steps of the number of coarse x-cells
-        glob_dims = (xi + yi * coarse_dims[0]).ravel('C')
+        glob_dims = (xi + yi * coarse_dims[0]).ravel("C")
     elif nd == 3:
         xi, yi, zi = np.meshgrid(ind[0], ind[1], ind[2])
         # Combine indices, with appropriate jumps in y and z counting
-        glob_dims = (xi + yi * coarse_dims[0] + zi * np.prod(coarse_dims[:2]))
+        glob_dims = xi + yi * coarse_dims[0] + zi * np.prod(coarse_dims[:2])
         # This just happened to work, may be logical, but the documentanion of
         # np.meshgrid was hard to comprehend.
-        glob_dims = np.swapaxes(np.swapaxes(glob_dims, 1, 2), 0, 1).ravel('C')
+        glob_dims = np.swapaxes(np.swapaxes(glob_dims, 1, 2), 0, 1).ravel("C")
 
     # Return an int
-    return glob_dims.astype('int')
+    return glob_dims.astype("int")
 
 
 def partition_coordinates(g, num_coarse, check_connectivity=True):
@@ -174,7 +177,7 @@ def partition_coordinates(g, num_coarse, check_connectivity=True):
     """
 
     # Compute geometry if necessary
-    if not hasattr(g, 'cell_centers'):
+    if not hasattr(g, "cell_centers"):
         g.compute_geometry()
 
     # Rough computation of the size of the Cartesian coarse grid: Determine the
@@ -186,10 +189,10 @@ def partition_coordinates(g, num_coarse, check_connectivity=True):
     max_coord = np.max(g.nodes, axis=1)
 
     # Drop unused dimensions for 2d (and 1d) grids
-    min_coord = min_coord[:g.dim]
-    max_coord = max_coord[:g.dim]
+    min_coord = min_coord[: g.dim]
+    max_coord = max_coord[: g.dim]
     # Cell centers, with the right number of dimensions
-    cc = g.cell_centers[:g.dim]
+    cc = g.cell_centers[: g.dim]
 
     delta = max_coord - min_coord
 
@@ -198,8 +201,9 @@ def partition_coordinates(g, num_coarse, check_connectivity=True):
     # relative distances.
     # Use ceil to round up, and thus avoid zeros. This may not be perfect, but
     # it should be robust.
-    delta_int = np.ceil(np.power(num_coarse, 1/g.dim) * delta\
-                        / np.min(delta)).astype('int')
+    delta_int = np.ceil(
+        np.power(num_coarse, 1 / g.dim) * delta / np.min(delta)
+    ).astype("int")
 
     coarse_dims = determine_coarse_dimensions(num_coarse, delta_int)
 
@@ -218,12 +222,14 @@ def partition_coordinates(g, num_coarse, check_connectivity=True):
         ind = np.array(np.unravel_index(i, coarse_dims))
         # Bounding coordinates
         lower_coord = min_coord + dx * ind
-        upper_coord = min_coord + dx * (ind+1)
+        upper_coord = min_coord + dx * (ind + 1)
         # Find cell centers within the box
-        hit = np.logical_and(cc >= lower_coord.reshape((-1, 1)),
-                             cc < upper_coord.reshape((-1, 1)))
+        hit = np.logical_and(
+            cc >= lower_coord.reshape((-1, 1)),
+            cc < upper_coord.reshape((-1, 1)),
+        )
         # We have a hit if all coordinates are within the box
-        hit_ind = np.argwhere(np.all(hit, axis=0)).ravel(order='C')
+        hit_ind = np.argwhere(np.all(hit, axis=0)).ravel(order="C")
         partition[hit_ind] = i
 
     # Sanity check, all cells should have received a coarse index
@@ -233,7 +239,7 @@ def partition_coordinates(g, num_coarse, check_connectivity=True):
         for p in np.unique(partition):
             p_ind = np.squeeze(np.argwhere(p == partition))
             if not grid_is_connected(g, p_ind):
-                raise ValueError('Partitioning led to unconnected subgrids')
+                raise ValueError("Partitioning led to unconnected subgrids")
 
     return partition
 
@@ -261,7 +267,7 @@ def partition(g, num_coarse):
         # Apparently, this will throw a KeyError unless pymetis has been
         # successfully imported. This is does not look elegant, but it should
         # work.
-        sys.modules['pymetis']
+        sys.modules["pymetis"]
         # If we have made it this far, we can run pymetis.
         return partition_metis(g, num_coarse)
     except KeyError:
@@ -326,13 +332,14 @@ def determine_coarse_dimensions(target, fine_size):
         # target.
         # There should be at least one coarse cell in each dimension, and at
         # maximum as many cells as on the fine scale.
-        s_num = np.power(target_now, 1/(nd - found.sum()))
+        s_num = np.power(target_now, 1 / (nd - found.sum()))
         s_low = np.maximum(np.ones(nd), np.floor(s_num))
         s_high = np.minimum(fine_size, np.ceil(s_num))
 
         # Find dimensions where we have hit the ceiling
-        hit_ceil = np.squeeze(np.argwhere(np.logical_and(s_high == fine_size,
-                                                         ~found)))
+        hit_ceil = np.squeeze(
+            np.argwhere(np.logical_and(s_high == fine_size, ~found))
+        )
         # These have a bound, and will have their leeway removed
         optimum[hit_ceil] = s_high[hit_ceil]
         found[hit_ceil] = True
@@ -367,10 +374,12 @@ def determine_coarse_dimensions(target, fine_size):
         found[:] = True
 
     if it_counter > nd:
-        raise ValueError('Maximum number of iterations exceeded. There is a \
-                         bug somewhere.')
+        raise ValueError(
+            "Maximum number of iterations exceeded. There is a \
+                         bug somewhere."
+        )
 
-    return optimum.astype('int')
+    return optimum.astype("int")
 
 
 def extract_subgrid(g, c, sort=True):
@@ -412,21 +421,21 @@ def extract_subgrid(g, c, sort=True):
 
     # Append information on subgrid extraction to the new grid's history
     name = list(g.name)
-    name.append('Extract subgrid')
+    name.append("Extract subgrid")
 
     # Construct new grid.
     h = Grid(g.dim, g.nodes[:, unique_nodes], fn_sub, cf_sub, name)
 
     # Copy geometric information if any
-    if hasattr(g, 'cell_centers'):
+    if hasattr(g, "cell_centers"):
         h.cell_centers = g.cell_centers[:, c]
-    if hasattr(g, 'cell_volumes'):
+    if hasattr(g, "cell_volumes"):
         h.cell_volumes = g.cell_volumes[c]
-    if hasattr(g, 'face_centers'):
+    if hasattr(g, "face_centers"):
         h.face_centers = g.face_centers[:, unique_faces]
-    if hasattr(g, 'face_normals'):
+    if hasattr(g, "face_normals"):
         h.face_normals = g.face_normals[:, unique_faces]
-    if hasattr(g, 'face_areas'):
+    if hasattr(g, "face_areas"):
         h.face_areas = g.face_areas[unique_faces]
 
     h.parent_cell_ind = c
@@ -442,8 +451,7 @@ def __extract_submatrix(mat, ind):
     sub_mat = mat[:, ind]
     cols = sub_mat.indptr
     data = sub_mat.data
-    unique_rows, rows_sub = np.unique(sub_mat.indices,
-                                      return_inverse=True)
+    unique_rows, rows_sub = np.unique(sub_mat.indices, return_inverse=True)
     return sps.csc_matrix((data, rows_sub, cols)), unique_rows
 
 
@@ -483,7 +491,7 @@ def partition_grid(g, ind):
     return sub_grid, face_map_list, node_map_list
 
 
-def overlap(g, cell_ind, num_layers, criterion='node'):
+def overlap(g, cell_ind, num_layers, criterion="node"):
     """
     From a set of cell indices, find an extended set of cells that form an
     overlap (in the domain decomposition sense).
@@ -522,7 +530,7 @@ def overlap(g, cell_ind, num_layers, criterion='node'):
     # Initialize by the specified cells
     active_cells[cell_ind] = 1
 
-    if criterion.lower().strip() == 'node':
+    if criterion.lower().strip() == "node":
         # Construct cell-node map, its transpose will be a node-cell map
         cn = g.cell_nodes()
 
@@ -538,7 +546,7 @@ def overlap(g, cell_ind, num_layers, criterion='node'):
             # Activate new cells.
             active_cells[ci_new] = 1
 
-    elif criterion().lower().strip() == 'face':
+    elif criterion().lower().strip() == "face":
         # Create a version of g.cell_faces with only positive values for
         # connections, e.g. let go of the divergence property
         cf = g.cell_faces
@@ -562,7 +570,8 @@ def overlap(g, cell_ind, num_layers, criterion='node'):
     return np.sort(np.squeeze(np.argwhere(active_cells > 0)))
 
 
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
+
 
 def grid_is_connected(g, cell_ind=None):
     """

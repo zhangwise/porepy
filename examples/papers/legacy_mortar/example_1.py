@@ -12,14 +12,14 @@ from porepy.utils import comp_geom as cg
 
 import create_porepy_grid
 
-#------------------------------------------------------------------------------#
+# ------------------------------------------------------------------------------#
 
 
 def add_data(gb, domain, kf):
     """
     Define the permeability, apertures, boundary conditions
     """
-    gb.add_node_props(['param'])
+    gb.add_node_props(["param"])
     tol = 1e-5
     a = 1e-3
 
@@ -46,19 +46,21 @@ def add_data(gb, domain, kf):
         param.set_aperture(np.ones(g.num_cells) * aperture)
 
         # Boundaries
-        bound_faces = g.tags['domain_boundary_faces'].nonzero()[0]
+        bound_faces = g.tags["domain_boundary_faces"].nonzero()[0]
         if bound_faces.size != 0:
             bound_face_centers = g.face_centers[:, bound_faces]
 
-            bottom_corner = np.logical_and(bound_face_centers[0, :] < 0.1,
-                                           bound_face_centers[1, :] < 0.1)
+            bottom_corner = np.logical_and(
+                bound_face_centers[0, :] < 0.1, bound_face_centers[1, :] < 0.1
+            )
 
-            top_corner = np.logical_and(bound_face_centers[0, :] > 0.9,
-                                        bound_face_centers[1, :] > 0.9)
+            top_corner = np.logical_and(
+                bound_face_centers[0, :] > 0.9, bound_face_centers[1, :] > 0.9
+            )
 
-            labels = np.array(['neu'] * bound_faces.size)
+            labels = np.array(["neu"] * bound_faces.size)
             dir_faces = np.logical_or(bottom_corner, top_corner)
-            labels[dir_faces] = 'dir'
+            labels[dir_faces] = "dir"
 
             bc_val = np.zeros(g.num_faces)
             bc_val[bound_faces[bottom_corner]] = 1
@@ -67,18 +69,18 @@ def add_data(gb, domain, kf):
             param.set_bc("flow", BoundaryCondition(g, bound_faces, labels))
             param.set_bc_val("flow", bc_val)
         else:
-            param.set_bc("flow", BoundaryCondition(
-                g, np.empty(0), np.empty(0)))
+            param.set_bc("flow", BoundaryCondition(g, np.empty(0), np.empty(0)))
 
-        d['param'] = param
+        d["param"] = param
 
     # Assign coupling permeability
-    gb.add_edge_prop('kn')
+    gb.add_edge_prop("kn")
     for e, d in gb.edges_props():
         g = gb.sorted_nodes_of_edge(e)[0]
-        d['kn'] = kf / gb.node_prop(g, 'param').get_aperture()
+        d["kn"] = kf / gb.node_prop(g, "param").get_aperture()
 
-#------------------------------------------------------------------------------#
+
+# ------------------------------------------------------------------------------#
 
 
 def main():
@@ -95,15 +97,16 @@ def main():
     problem.solve()
 
     problem.split()
-    problem.pressure('pressure')
-    problem.project_discharge('P0u')
+    problem.pressure("pressure")
+    problem.project_discharge("P0u")
 
     problem.save(["pressure", "P0u"])
 
-#------------------------------------------------------------------------------#
+
+# ------------------------------------------------------------------------------#
 
 
 if __name__ == "__main__":
     main()
 
-#------------------------------------------------------------------------------#
+# ------------------------------------------------------------------------------#

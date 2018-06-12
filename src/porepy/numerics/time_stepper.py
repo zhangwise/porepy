@@ -33,7 +33,7 @@ class AbstractSolver(object):
 
         data = problem.data()
         data[problem.physics] = []
-        data['times'] = []
+        data["times"] = []
 
         p0 = problem.initial_condition()
         p = p0
@@ -57,7 +57,7 @@ class AbstractSolver(object):
         Solve problem.
         """
         nt = np.ceil(self.T / self.dt).astype(np.int)
-        logger.warning('Time stepping using ' + str(nt) + ' steps')
+        logger.warning("Time stepping using " + str(nt) + " steps")
         t = self.dt
         counter = 0
         if not save_as is None:
@@ -65,20 +65,24 @@ class AbstractSolver(object):
             self.problem.exporter.write_vtk([save_as], time_step=counter)
             times = [0.0]
 
-        while t < self.T *(1 + 1e-14):
-            logger.warning('Step ' + str(counter) + ' out of ' + str(nt))
+        while t < self.T * (1 + 1e-14):
+            logger.warning("Step " + str(counter) + " out of " + str(nt))
             counter += 1
             self.update(t)
             self.reassemble()
             self.step()
-            logger.debug('Maximum value ' + str(self.p.max()) +\
-                         ', minimum value ' + str(self.p.min()))
-            if not save_as is None and np.mod(counter, save_every)==0:
-                logger.info('Saving solution')
+            logger.debug(
+                "Maximum value "
+                + str(self.p.max())
+                + ", minimum value "
+                + str(self.p.min())
+            )
+            if not save_as is None and np.mod(counter, save_every) == 0:
+                logger.info("Saving solution")
                 self.problem.split(save_as)
                 self.problem.exporter.write_vtk([save_as], time_step=counter)
                 times.append(t)
-                logger.info('Finished saving')
+                logger.info("Finished saving")
             t += self.dt
 
         if not save_as is None:
@@ -106,8 +110,7 @@ class AbstractSolver(object):
         reassemble matrices. This must be called between every time step to
         update the rhs of the system.
         """
-        raise NotImplementedError(
-            'subclass must overload function reasemble()')
+        raise NotImplementedError("subclass must overload function reasemble()")
 
     def _discretize(self, discs):
         if isinstance(self.g, GridBucket):
@@ -178,7 +181,9 @@ class BDF2(AbstractSolver):
             self.rhs = lhs_time * self.p0 + rhs_flux + rhs_time
         else:
             self.lhs = lhs_time + 2. / 3 * lhs_flux
-            bdf2_rhs = 4. / 3 * lhs_time * self.p0 - 1. / 3 * lhs_time * self.p_1
+            bdf2_rhs = (
+                4. / 3 * lhs_time * self.p0 - 1. / 3 * lhs_time * self.p_1
+            )
             self.rhs = bdf2_rhs + 2. / 3 * rhs_flux + rhs_time
 
 
@@ -208,12 +213,12 @@ class Explicit(AbstractSolver):
             self.reassemble()
             self.step()
             # Save time step
-            if not save_as is None and np.mod(counter, save_every)==0:
-                logger.info('Saving solution')
+            if not save_as is None and np.mod(counter, save_every) == 0:
+                logger.info("Saving solution")
                 self.problem.split(save_as)
                 self.problem.exporter.write_vtk([save_as], time_step=counter)
                 times.append(t)
-                logger.info('Finished saving')
+                logger.info("Finished saving")
             t += self.dt
 
         # Write pvd
@@ -264,5 +269,6 @@ class CrankNicolson(AbstractSolver):
         rhs1 = 0.5 * (self.rhs_flux + self.rhs_time)
         rhs0 = 0.5 * (self.rhs_flux_0 + self.rhs_time_0)
         self.lhs = self.lhs_time + 0.5 * self.lhs_flux
-        self.rhs = (self.lhs_time - 0.5 * self.lhs_flux_0) * \
-            self.p0 + rhs1 + rhs0
+        self.rhs = (
+            (self.lhs_time - 0.5 * self.lhs_flux_0) * self.p0 + rhs1 + rhs0
+        )

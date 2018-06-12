@@ -15,7 +15,7 @@ import scipy.sparse as sps
 
 class Coupler(object):
 
-    #------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
 
     def __init__(self, discr=None, coupling=None, **kwargs):
 
@@ -42,7 +42,7 @@ class Coupler(object):
         else:
             self.coupling_fct = coupling.matrix_rhs
 
-#------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
 
     def ndof(self, gb):
         """
@@ -55,11 +55,11 @@ class Coupler(object):
         gb: grid bucket.
 
         """
-        gb.add_node_props('dof')
+        gb.add_node_props("dof")
         for g, d in gb:
-            d['dof'] = self.discr_ndof(g)
+            d["dof"] = self.discr_ndof(g)
 
-#------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
 
     def matrix_rhs(self, gb, matrix_format="csr"):
         """
@@ -87,15 +87,15 @@ class Coupler(object):
         matrix = np.empty((gb.size(), gb.size()), dtype=np.object)
         rhs = np.empty(gb.size(), dtype=np.object)
         for g_i, d_i in gb:
-            pos_i = d_i['node_number']
-            rhs[pos_i] = np.empty(d_i['dof'])
+            pos_i = d_i["node_number"]
+            rhs[pos_i] = np.empty(d_i["dof"])
             for g_j, d_j in gb:
-                pos_j = d_j['node_number']
-                matrix[pos_i, pos_j] = sps.coo_matrix((d_i['dof'], d_j['dof']))
+                pos_j = d_j["node_number"]
+                matrix[pos_i, pos_j] = sps.coo_matrix((d_i["dof"], d_j["dof"]))
 
         # Loop over the grids and compute the problem matrix
         for g, data in gb:
-            pos = data['node_number']
+            pos = data["node_number"]
             matrix[pos, pos], rhs[pos] = self.discr_fct(g, data)
 
         # Handle special case of 1-element grids, that give 0-d arrays
@@ -109,8 +109,8 @@ class Coupler(object):
         # the coupling conditions
         for e, data in gb.edges():
             g_l, g_h = gb.nodes_of_edge(e)
-            pos_l = gb.node_props(g_l, 'node_number')
-            pos_h = gb.node_props(g_h, 'node_number')
+            pos_l = gb.node_props(g_l, "node_number")
+            pos_h = gb.node_props(g_h, "node_number")
             idx = np.ix_([pos_h, pos_l], [pos_h, pos_l])
 
             data_l, data_h = gb.node_props(g_l), gb.node_props(g_h)
@@ -118,7 +118,7 @@ class Coupler(object):
 
         return sps.bmat(matrix, matrix_format), np.concatenate(tuple(rhs))
 
-#------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
 
     def split(self, gb, key, values):
         """
@@ -137,10 +137,10 @@ class Coupler(object):
 
         gb.add_node_props(key)
         for g, d in gb:
-            i = d['node_number']
+            i = d["node_number"]
             d[key] = values[slice(dofs[i], dofs[i + 1])]
 
-#------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
     def merge(self, gb, key):
         """
         Merge the stored split function stored in the grid bucket to a vector.
@@ -161,20 +161,22 @@ class Coupler(object):
         values = np.zeros(dofs[-1])
 
         for g, d in gb:
-            i = d['node_number']
+            i = d["node_number"]
             values[slice(dofs[i], dofs[i + 1])] = d[key]
 
         return values
-#------------------------------------------------------------------------------#
 
-    def _dof_start_of_grids(self ,gb):
+    # ------------------------------------------------------------------------------#
+
+    def _dof_start_of_grids(self, gb):
         " Helper method to get first global dof for all grids. "
         self.ndof(gb)
         dofs = np.empty(gb.size(), dtype=int)
         for _, d in gb:
-            dofs[d['node_number']] = d['dof']
+            dofs[d["node_number"]] = d["dof"]
         return np.r_[0, np.cumsum(dofs)]
-#------------------------------------------------------------------------------#
+
+    # ------------------------------------------------------------------------------#
 
     def dof_of_grid(self, gb, g):
         """ Obtain global indices of dof associated with a given grid.
@@ -188,5 +190,5 @@ class Coupler(object):
 
         """
         dof_list = self._dof_start_of_grids(gb)
-        nn = gb.node_props(g)['node_number']
-        return np.arange(dof_list[nn], dof_list[nn+1])
+        nn = gb.node_props(g)["node_number"]
+        return np.arange(dof_list[nn], dof_list[nn + 1])

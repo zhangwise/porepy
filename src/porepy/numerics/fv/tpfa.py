@@ -15,25 +15,27 @@ from porepy.numerics.mixed_dim.abstract_coupling import AbstractCoupling
 
 from porepy.numerics.fv import fvutils
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 class TpfaMixedDim(pp.numerics.mixed_dim.solver.SolverMixedDim):
-    def __init__(self, physics='flow'):
+    def __init__(self, physics="flow"):
         self.physics = physics
 
         self.discr = Tpfa(self.physics)
         self.discr_ndof = self.discr.ndof
         self.coupling_conditions = TpfaCoupling(self.discr)
 
-        self.solver = pp.numerics.mixed_dim.coupler.Coupler(self.discr,
-                                                       self.coupling_conditions)
+        self.solver = pp.numerics.mixed_dim.coupler.Coupler(
+            self.discr, self.coupling_conditions
+        )
 
-#------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 
 
 class TpfaDFN(pp.numerics.mixed_dim.solver.SolverMixedDim):
-
-    def __init__(self, dim_max, physics='flow'):
+    def __init__(self, dim_max, physics="flow"):
         # NOTE: There is no flow along the intersections of the fractures.
 
         self.physics = physics
@@ -42,10 +44,13 @@ class TpfaDFN(pp.numerics.mixed_dim.solver.SolverMixedDim):
         self.discr = Tpfa(self.physics)
         self.coupling_conditions = TpfaCouplingDFN(self.discr)
 
-        kwargs = {"discr_ndof": self.discr.ndof,
-                  "discr_fct": self.__matrix_rhs__}
+        kwargs = {
+            "discr_ndof": self.discr.ndof,
+            "discr_fct": self.__matrix_rhs__,
+        }
         self.solver = pp.numerics.mixed_dim.coupler.Coupler(
-                                    coupling=self.coupling_conditions, **kwargs)
+            coupling=self.coupling_conditions, **kwargs
+        )
         pp.numerics.mixed_dim.solver.SolverMixedDim.__init__(self)
 
     def __matrix_rhs__(self, g, data):
@@ -58,7 +63,9 @@ class TpfaDFN(pp.numerics.mixed_dim.solver.SolverMixedDim):
             ndof = self.discr.ndof(g)
             return sps.csr_matrix((ndof, ndof)), np.zeros(ndof)
 
-#------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+
 
 class Tpfa(pp.numerics.mixed_dim.solver.Solver):
     """ Discretize elliptic equations by a two-point flux approximation.
@@ -72,7 +79,7 @@ class Tpfa(pp.numerics.mixed_dim.solver.Solver):
 
     """
 
-    def __init__(self, physics='flow'):
+    def __init__(self, physics="flow"):
         self.physics = physics
 
     def ndof(self, g):
@@ -91,7 +98,7 @@ class Tpfa(pp.numerics.mixed_dim.solver.Solver):
         """
         return g.num_cells
 
-#------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
 
     def matrix_rhs(self, g, data, faces=None, discretize=True):
         """
@@ -121,16 +128,16 @@ class Tpfa(pp.numerics.mixed_dim.solver.Solver):
         div = fvutils.scalar_divergence(g)
         if discretize:
             self.discretize(g, data)
-        flux = data['flux']
+        flux = data["flux"]
         M = div * flux
 
-        bound_flux = data['bound_flux']
-        param = data['param']
+        bound_flux = data["bound_flux"]
+        param = data["param"]
         bc_val = param.get_bc_val(self)
 
         return M, self.rhs(g, bound_flux, bc_val)
 
-#------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
 
     def rhs(self, g, bound_flux, bc_val):
         """
@@ -141,7 +148,7 @@ class Tpfa(pp.numerics.mixed_dim.solver.Solver):
         div = g.cell_faces.T
         return -div * bound_flux * bc_val
 
-#------------------------------------------------------------------------------#
+    # ------------------------------------------------------------------------------#
 
     def discretize(self, g, data, faces=None):
         """
@@ -174,14 +181,14 @@ class Tpfa(pp.numerics.mixed_dim.solver.Solver):
         g : grid, or a subclass, with geometry fields computed.
         data: dictionary to store the data.
         """
-        param = data['param']
+        param = data["param"]
         k = param.get_tensor(self)
         bnd = param.get_bc(self)
         aperture = param.get_aperture()
 
         if g.dim == 0:
-            data['flux'] = sps.csr_matrix([0])
-            data['bound_flux'] = 0
+            data["flux"] = sps.csr_matrix([0])
+            data["bound_flux"] = 0
             return None
         if faces is None:
             is_not_active = np.zeros(g.num_faces, dtype=np.bool)
@@ -208,7 +215,7 @@ class Tpfa(pp.numerics.mixed_dim.solver.Solver):
         nk = perm * n
         nk = nk.sum(axis=1)
 
-        if data.get('Aavatsmark_transmissibilities', False):
+        if data.get("Aavatsmark_transmissibilities", False):
             # These work better in some cases (possibly if the problem is grid
             # quality rather than anisotropy?). To be explored (with care) or
             # ignored.
@@ -242,17 +249,18 @@ class Tpfa(pp.numerics.mixed_dim.solver.Solver):
         bndr_sgn = (g.cell_faces[bndr_ind, :]).data
         sort_id = np.argsort(g.cell_faces[bndr_ind, :].indices)
         bndr_sgn = bndr_sgn[sort_id]
-        bound_flux = sps.coo_matrix((t_b * bndr_sgn, (bndr_ind, bndr_ind)),
-                                    (g.num_faces, g.num_faces))
+        bound_flux = sps.coo_matrix(
+            (t_b * bndr_sgn, (bndr_ind, bndr_ind)), (g.num_faces, g.num_faces)
+        )
 
-        data['flux'] = flux
-        data['bound_flux'] = bound_flux
+        data["flux"] = flux
+        data["bound_flux"] = bound_flux
 
-#------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 
 
 class TpfaCoupling(AbstractCoupling):
-
     def __init__(self, solver):
         self.solver = solver
 
@@ -284,15 +292,15 @@ class TpfaCoupling(AbstractCoupling):
                 in a csc.sparse matrix.
         """
 
-        k_l = data_l['param'].get_tensor(self.solver)
-        k_h = data_h['param'].get_tensor(self.solver)
-        a_l = data_l['param'].get_aperture()
-        a_h = data_h['param'].get_aperture()
+        k_l = data_l["param"].get_tensor(self.solver)
+        k_h = data_h["param"].get_tensor(self.solver)
+        a_l = data_l["param"].get_aperture()
+        a_h = data_h["param"].get_aperture()
 
         dof = np.array([self.solver.ndof(g_h), self.solver.ndof(g_l)])
 
         # Obtain the cells and face signs of the higher dimensional grid
-        cells_l, faces_h, _ = sps.find(data_edge['face_cells'])
+        cells_l, faces_h, _ = sps.find(data_edge["face_cells"])
         faces, cells_h, sgn_h = sps.find(g_h.cell_faces)
         ind = np.unique(faces, return_index=True)[1]
         sgn_h = sgn_h[ind]
@@ -311,18 +319,20 @@ class TpfaCoupling(AbstractCoupling):
         # (edgewise), the face centroid is shifted half an aperture in the normal
         # direction of the fracture. Unless matrix cell size approaches the
         # aperture, this has minimal impact.
-        if data_edge.get('aperture_correction', False):
+        if data_edge.get("aperture_correction", False):
             apt_dim = np.divide(a_l[cells_l], a_h[cells_h])
-            fc_corrected = g_h.face_centers[::,
-                                            faces_h].copy() - apt_dim / 2 * n
+            fc_corrected = (
+                g_h.face_centers[::, faces_h].copy() - apt_dim / 2 * n
+            )
             fc_cc_h = fc_corrected - g_h.cell_centers[::, cells_h]
         else:
-            fc_cc_h = g_h.face_centers[::, faces_h] - \
-                g_h.cell_centers[::, cells_h]
+            fc_cc_h = (
+                g_h.face_centers[::, faces_h] - g_h.cell_centers[::, cells_h]
+            )
 
         nk_h = perm_h * n
         nk_h = nk_h.sum(axis=1)
-        if data_edge.get('Aavatsmark_transmissibilities', False):
+        if data_edge.get("Aavatsmark_transmissibilities", False):
             dist_face_cell_h = np.linalg.norm(fc_cc_h, 2, axis=0)
             t_face_h = np.linalg.norm(nk_h, 2, axis=0)
         else:
@@ -345,8 +355,7 @@ class TpfaCoupling(AbstractCoupling):
         n2 = n[:, np.newaxis, :]
         n1n2 = n1 * n2
 
-        normal_perm = np.einsum(
-            'ij...,ij...', n1n2, k_l.perm[:, :, cells_l])
+        normal_perm = np.einsum("ij...,ij...", n1n2, k_l.perm[:, :, cells_l])
         # The area has been multiplied in twice, not once as above, through n1
         # and n2
         normal_perm = np.divide(normal_perm, g_h.face_areas[faces_h])
@@ -356,7 +365,8 @@ class TpfaCoupling(AbstractCoupling):
 
         # And use it for face-center cell-center distance
         t_face_l = np.divide(
-            t_face_l, 0.5 * np.divide(a_l[cells_l], a_h[cells_h]))
+            t_face_l, 0.5 * np.divide(a_l[cells_l], a_h[cells_h])
+        )
 
         # Assemble face transmissibilities for the two dimensions and compute
         # harmonic average
@@ -364,8 +374,9 @@ class TpfaCoupling(AbstractCoupling):
         t = t_face.prod(axis=0) / t_face.sum(axis=0)
 
         # Create the block matrix for the contributions
-        cc = np.array([sps.coo_matrix((i, j)) for i in dof for j in dof]
-                      ).reshape((2, 2))
+        cc = np.array(
+            [sps.coo_matrix((i, j)) for i in dof for j in dof]
+        ).reshape((2, 2))
 
         # Compute the off-diagonal terms
         dataIJ, I, J = -t, cells_l, cells_h
@@ -379,20 +390,22 @@ class TpfaCoupling(AbstractCoupling):
         cc[1, 1] = sps.csr_matrix((dataIJ, (I, J)), (dof[1], dof[1]))
 
         # Save the flux discretization for back-computation of fluxes
-        cells2faces = sps.csr_matrix((sgn_h, (faces_h, cells_h)),
-                                     (g_h.num_faces, g_h.num_cells))
+        cells2faces = sps.csr_matrix(
+            (sgn_h, (faces_h, cells_h)), (g_h.num_faces, g_h.num_cells)
+        )
 
-        data_edge['coupling_flux'] = sps.hstack([cells2faces * cc[0, 0],
-                                                 cells2faces * cc[0, 1]])
-        data_edge['coupling_discretization'] = cc
+        data_edge["coupling_flux"] = sps.hstack(
+            [cells2faces * cc[0, 0], cells2faces * cc[0, 1]]
+        )
+        data_edge["coupling_discretization"] = cc
 
         return cc
 
-#------------------------------------------------------------------------------#
+
+# ------------------------------------------------------------------------------#
 
 
 class TpfaCouplingDFN(AbstractCoupling):
-
     def __init__(self, solver):
         self.solver = solver
 
@@ -413,13 +426,13 @@ class TpfaCouplingDFN(AbstractCoupling):
                 in a csc.sparse matrix.
         """
 
-        k_h = data_h['param'].get_tensor(self.solver)
-        a_h = data_h['param'].get_aperture()
+        k_h = data_h["param"].get_tensor(self.solver)
+        a_h = data_h["param"].get_aperture()
 
         dof = np.array([self.solver.ndof(g_h), self.solver.ndof(g_l)])
 
         # Obtain the cells and face signs of the higher dimensional grid
-        cells_l, faces_h, _ = sps.find(data_edge['face_cells'])
+        cells_l, faces_h, _ = sps.find(data_edge["face_cells"])
         faces, cells_h, sgn_h = sps.find(g_h.cell_faces)
         ind = np.unique(faces, return_index=True)[1]
         sgn_h = sgn_h[ind]
@@ -437,7 +450,7 @@ class TpfaCouplingDFN(AbstractCoupling):
 
         nk_h = perm_h * n
         nk_h = nk_h.sum(axis=1)
-        if data_edge.get('Aavatsmark_transmissibilities', False):
+        if data_edge.get("Aavatsmark_transmissibilities", False):
             dist_face_cell_h = np.linalg.norm(fc_cc_h, 2, axis=0)
             t_face_h = np.linalg.norm(nk_h, 2, axis=0)
         else:
@@ -450,8 +463,9 @@ class TpfaCouplingDFN(AbstractCoupling):
         t = np.divide(t_face_h, dist_face_cell_h)
 
         # Create the block matrix for the contributions
-        cc = np.array([sps.coo_matrix((i, j)) for i in dof for j in dof]
-                      ).reshape((2, 2))
+        cc = np.array(
+            [sps.coo_matrix((i, j)) for i in dof for j in dof]
+        ).reshape((2, 2))
 
         # Compute the off-diagonal terms
         dataIJ, I, J = -t, cells_l, cells_h
@@ -465,13 +479,16 @@ class TpfaCouplingDFN(AbstractCoupling):
         cc[1, 1] = sps.csr_matrix((dataIJ, (I, J)), (dof[1], dof[1]))
 
         # Save the flux discretization for back-computation of fluxes
-        cells2faces = sps.csr_matrix((sgn_h, (faces_h, cells_h)),
-                                     (g_h.num_faces, g_h.num_cells))
+        cells2faces = sps.csr_matrix(
+            (sgn_h, (faces_h, cells_h)), (g_h.num_faces, g_h.num_cells)
+        )
 
-        data_edge['coupling_flux'] = sps.hstack([cells2faces * cc[0, 0],
-                                                 cells2faces * cc[0, 1]])
-        data_edge['coupling_discretization'] = cc
+        data_edge["coupling_flux"] = sps.hstack(
+            [cells2faces * cc[0, 0], cells2faces * cc[0, 1]]
+        )
+        data_edge["coupling_discretization"] = cc
 
         return cc
 
-#------------------------------------------------------------------------------#
+
+# ------------------------------------------------------------------------------#

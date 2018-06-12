@@ -6,18 +6,11 @@ from porepy.fracs.meshing import cart_grid
 
 class TestCartGridFrac(unittest.TestCase):
     def test_tripple_x_intersection_3d(self):
-        f1 = np.array([[0,  1,  1,  0],
-                       [0,  0,  1,  1],
-                       [.5, .5, .5, .5]])
-        f2 = np.array([[.5, .5, .5, .5],
-                       [0,  1,  1,  0],
-                       [0,  0,  1,  1]])
-        f3 = np.array([[0,  1,  1,  0],
-                       [.5, .5, .5, .5],
-                       [0,  0,  1,  1]])
+        f1 = np.array([[0, 1, 1, 0], [0, 0, 1, 1], [.5, .5, .5, .5]])
+        f2 = np.array([[.5, .5, .5, .5], [0, 1, 1, 0], [0, 0, 1, 1]])
+        f3 = np.array([[0, 1, 1, 0], [.5, .5, .5, .5], [0, 0, 1, 1]])
 
-        gb = cart_grid([f1, f2, f3], [2, 2, 2],
-                       **{'physdims': [1, 1, 1]})
+        gb = cart_grid([f1, f2, f3], [2, 2, 2], **{"physdims": [1, 1, 1]})
         g_3 = gb.grids_of_dimension(3)
         g_2 = gb.grids_of_dimension(2)
         g_1 = gb.grids_of_dimension(1)
@@ -35,6 +28,7 @@ class TestCartGridFrac(unittest.TestCase):
 
         g_all = g_3 + g_2 + g_1 + g_0
         for g in g_all:
-            d = np.all(np.abs(g.nodes - np.array([[.5], [.5], [.5]])) < 1e-6,
-                       axis=0)
+            d = np.all(
+                np.abs(g.nodes - np.array([[.5], [.5], [.5]])) < 1e-6, axis=0
+            )
             assert any(d)

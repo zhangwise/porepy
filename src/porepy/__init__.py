@@ -16,9 +16,9 @@ viz: Visualization; paraview, matplotlib.
 
 """
 
-__version__ = '0.3.1'
+__version__ = "0.3.1"
 
-#------------------------------------
+# ------------------------------------
 # Simplified namespaces. The rue of thumb is that classes and modules that a
 # user can be exposed to should have a shortcut here. Borderline cases will be
 # decided as needed
@@ -46,19 +46,28 @@ from porepy.numerics.fv.mass_matrix import InvMassMatrix, InvMassMatrixMixedDim
 # Physical models
 from porepy.numerics.elliptic import EllipticModel, EllipticDataAssigner
 from porepy.numerics.parabolic import ParabolicModel, ParabolicDataAssigner
-from porepy.numerics.compressible import SlightlyCompressibleModel, SlightlyCompressibleDataAssigner
+from porepy.numerics.compressible import (
+    SlightlyCompressibleModel,
+    SlightlyCompressibleDataAssigner,
+)
 from porepy.numerics.mechanics import StaticModel, StaticDataAssigner
-from porepy.numerics.fracture_deformation import FrictionSlipModel, FrictionSlipDataAssigner
+from porepy.numerics.fracture_deformation import (
+    FrictionSlipModel,
+    FrictionSlipDataAssigner,
+)
 
 # Time steppers
 from porepy.numerics.time_stepper import Implicit, Explicit
 
-#Grid
+# Grid
 from porepy.grids.grid import Grid
 from porepy.grids.grid_bucket import GridBucket
 from porepy.grids.structured import CartGrid, TensorGrid
 from porepy.grids.simplex import TriangleGrid, TetrahedralGrid
-from porepy.grids.simplex import StructuredTriangleGrid, StructuredTetrahedralGrid
+from porepy.grids.simplex import (
+    StructuredTriangleGrid,
+    StructuredTetrahedralGrid,
+)
 from porepy.grids.point_grid import PointGrid
 
 # Fractures
@@ -83,5 +92,3 @@ from porepy.grids import structured, simplex, coarsening, partition
 from porepy.params.units import *
 from porepy.numerics.fv import fvutils
 from porepy.utils import error
-
-

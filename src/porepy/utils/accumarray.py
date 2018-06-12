@@ -75,8 +75,10 @@ def accum(accmap, a, func=None, size=None, fill_value=0, dtype=None):
     """
 
     # Check for bad arguments and handle the defaults.
-    if accmap.shape[:a.ndim] != a.shape:
-        raise ValueError("The initial dimensions of accmap must be the same as a.shape")
+    if accmap.shape[: a.ndim] != a.shape:
+        raise ValueError(
+            "The initial dimensions of accmap must be the same as a.shape"
+        )
     if func is None:
         func = np.sum
     if dtype is None:
@@ -89,7 +91,7 @@ def accum(accmap, a, func=None, size=None, fill_value=0, dtype=None):
     size = np.atleast_1d(size)
 
     # Create an array of python lists of values.
-    vals = np.empty(size, dtype='O')
+    vals = np.empty(size, dtype="O")
     for s in product(*[range(k) for k in size]):
         vals[s] = []
     for s in product(*[range(k) for k in a.shape]):

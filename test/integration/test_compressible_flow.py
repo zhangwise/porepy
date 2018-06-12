@@ -8,14 +8,13 @@ from porepy.params import tensor
 
 
 class TestCompressibleFlow(unittest.TestCase):
-
     def test_3d_Fracture_problem(self):
         problem = UnitSquareInjectionMultiDim()
         problem.solve()
-        problem.pressure('pressure')
+        problem.pressure("pressure")
         for g, d in problem.grid():
             if g.dim == 3:
-                pT = d['pressure']
+                pT = d["pressure"]
         p_refT = _reference_solution_multi_grid()
 
         assert np.allclose(pT, p_refT)
@@ -33,7 +32,7 @@ class FractureDomain(compressible.SlightlyCompressibleDataAssigner):
     def __init__(self, g, d):
         compressible.SlightlyCompressibleDataAssigner.__init__(self, g, d)
         aperture = np.power(0.001, 3 - g.dim)
-        self.data()['param'].set_aperture(aperture)
+        self.data()["param"].set_aperture(aperture)
 
     def permeability(self):
         kxx = 1000 * np.ones(self.grid().num_cells)
@@ -45,26 +44,25 @@ class IntersectionDomain(FractureDomain):
         FractureDomain.__init__(self, g, d)
 
     def source(self, t):
-        assert self.grid().num_cells == 1, '0D grid should only have 1 cell'
+        assert self.grid().num_cells == 1, "0D grid should only have 1 cell"
         f = .4 * self.grid().cell_volumes  # m**3/s
         return f * (t < .05)
 
 
 def set_sub_problems(gb):
-    gb.add_node_props(['flow_data'])
+    gb.add_node_props(["flow_data"])
     for g, d in gb:
         if g.dim == 3:
-            d['flow_data'] = MatrixDomain(g, d)
+            d["flow_data"] = MatrixDomain(g, d)
         elif g.dim == 2 or g.dim == 1:
-            d['flow_data'] = FractureDomain(g, d)
+            d["flow_data"] = FractureDomain(g, d)
         elif g.dim == 0:
-            d['flow_data'] = IntersectionDomain(g, d)
+            d["flow_data"] = IntersectionDomain(g, d)
         else:
-            raise ValueError('Unkown grid-dimension %d' % g.dim)
+            raise ValueError("Unkown grid-dimension %d" % g.dim)
 
 
 class UnitSquareInjectionMultiDim(compressible.SlightlyCompressibleModel):
-
     def __init__(self):
 
         f_1 = np.array([[0, 1, 1, 0], [.5, .5, .5, .5], [0, 0, 1, 1]])
@@ -78,14 +76,14 @@ class UnitSquareInjectionMultiDim(compressible.SlightlyCompressibleModel):
         set_sub_problems(g)
         self.g = g
         # Initialize base class
-        compressible.SlightlyCompressibleModel.__init__(self, self.g, 'flow')
+        compressible.SlightlyCompressibleModel.__init__(self, self.g, "flow")
 
-    #--------grid function--------
+    # --------grid function--------
 
     def grid(self):
         return self.g
 
-    #--------Time stepping------------
+    # --------Time stepping------------
 
     def time_step(self):
         return .005
@@ -93,21 +91,77 @@ class UnitSquareInjectionMultiDim(compressible.SlightlyCompressibleModel):
     def end_time(self):
         return 0.05
 
+
 ###############################################################################
 
 
 def _reference_solution_multi_grid():
-    pT = np.array([0.00983112,  0.01637886,  0.01637886,  0.00983112,  0.01637886,
-                   0.02264049,  0.02264049,  0.01637886,  0.01637886,  0.02264049,
-                   0.02264049,  0.01637886,  0.00983112,  0.01637886,  0.01637886,
-                   0.00983112,  0.01637886,  0.02264049,  0.02264049,  0.01637886,
-                   0.02264049,  0.03234641,  0.03234641,  0.02264049,  0.02264049,
-                   0.03234641,  0.03234641,  0.02264049,  0.01637886,  0.02264049,
-                   0.02264049,  0.01637886,  0.01637886,  0.02264049,  0.02264049,
-                   0.01637886,  0.02264049,  0.03234641,  0.03234641,  0.02264049,
-                   0.02264049,  0.03234641,  0.03234641,  0.02264049,  0.01637886,
-                   0.02264049,  0.02264049,  0.01637886,  0.00983112,  0.01637886,
-                   0.01637886,  0.00983112,  0.01637886,  0.02264049,  0.02264049,
-                   0.01637886,  0.01637886,  0.02264049,  0.02264049,  0.01637886,
-                   0.00983112,  0.01637886,  0.01637886,  0.00983112])
+    pT = np.array(
+        [
+            0.00983112,
+            0.01637886,
+            0.01637886,
+            0.00983112,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.00983112,
+            0.01637886,
+            0.01637886,
+            0.00983112,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.02264049,
+            0.03234641,
+            0.03234641,
+            0.02264049,
+            0.02264049,
+            0.03234641,
+            0.03234641,
+            0.02264049,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.02264049,
+            0.03234641,
+            0.03234641,
+            0.02264049,
+            0.02264049,
+            0.03234641,
+            0.03234641,
+            0.02264049,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.00983112,
+            0.01637886,
+            0.01637886,
+            0.00983112,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.01637886,
+            0.02264049,
+            0.02264049,
+            0.01637886,
+            0.00983112,
+            0.01637886,
+            0.01637886,
+            0.00983112,
+        ]
+    )
     return pT
